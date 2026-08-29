@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import torch
+import re
 from pathlib import Path
 from torch.utils.data import Dataset
 from sklearn.model_selection import StratifiedKFold
@@ -59,6 +60,23 @@ def foreground_slices(mask: np.ndarray, min_voxels: int) -> list[int]:
 # ---------------------------------------------------------------------------
 # index construction
 # ---------------------------------------------------------------------------
+def _find_file(directory: Path, sid: str) -> Path | None:
+    """Match sid only when not followed by another digit."""
+    cands = sorted(directory.glob(f"*{sid}*.nii*"))
+    exact = [
+        p for p in cands
+        if re.match(rf"^{re.escape(sid)}(?!\d)", p.name)
+    ]
+
+    if len(exact) == 1:
+        return exact[0]
+
+    if len(exact) > 1:
+        raise ValueError(
+            f"ambiguous ID {sid}: {[p.name for p in exact]}"
+        )
+
+    return None
 
 def build_index(cfg) -> pd.DataFrame:
     """Scan the dataset once and return one row per usable slice.
@@ -79,8 +97,8 @@ def build_index(cfg) -> pd.DataFrame:
     rows = []
     for _, r in meta.iterrows():
         sid = str(r["subject_id"])
-        img_p = next(img_dir.glob(f"*{sid}*.nii*"), None)
-        lbl_p = next(lbl_dir.glob(f"*{sid}*.nii*"), None)
+        img_p = _find_file(img_dir, sid)
+        lbl_p = _find_file(lbl_dir, sid)
         if img_p is None or lbl_p is None:
             print(f"[warn] missing volume or mask for {sid}; skipped")
             continue

@@ -21,3 +21,7 @@ __pycache__/
 # Local metadata / clinical data
 metadata.csv
 hvsmr_clinical.csv
+
+# Temporary label-test files
+metadata_original.csv
+metadata_shuffled.csv

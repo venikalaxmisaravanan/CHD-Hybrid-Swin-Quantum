@@ -22,7 +22,7 @@ from torch.utils.data import Dataset
 
 from data import IMAGENET_MEAN, IMAGENET_STD
 
-CACHE_DIR = Path("cache")
+CACHE_DIR = Path("/content/drive/MyDrive/CHD_Journal_Project/Restored_Project/cache")
 
 
 def load_cached_index() -> pd.DataFrame:
