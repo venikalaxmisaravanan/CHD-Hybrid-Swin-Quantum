@@ -1,0 +1,23 @@
+# Medical imaging datasets
+hvsmr/
+hvsmr2/
+hvsmr_data/
+*.zip
+
+# Generated cache
+cache/
+*.npy
+
+# Model checkpoints and generated runs
+runs/
+outputs/
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+
+# Local metadata / clinical data
+metadata.csv
+hvsmr_clinical.csv
