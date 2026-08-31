@@ -110,6 +110,10 @@ def main():
         folds.append(m)
         all_y.append(y_pat); all_p.append(p_pat)
         torch.save(model.state_dict(), out / f"fold{fold}.pt")
+        with open(out / "folds_partial.json", "w") as f:
+           json.dump(folds, f, indent=2, default=float)
+
+        np.savez(out / f"fold{fold}_preds.npz", y=y_pat, p=p_pat)
         print(f"[fold {fold}] {m}")
 
     Y = np.concatenate(all_y); P = np.concatenate(all_p)
