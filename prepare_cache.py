@@ -26,7 +26,7 @@ from data import build_index, load_volume, normalise_mri
 
 def main():
     cfg = CFG
-    out_dir = Path("/content/drive/MyDrive/CHD_Journal_Project/Restored_Project/cache")
+    out_dir = Path("/content/cache")
     out_dir.mkdir(exist_ok=True)
 
     df = build_index(cfg).reset_index(drop=True)
