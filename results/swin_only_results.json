@@ -1,0 +1,102 @@
+{
+  "config": "swin_only",
+  "folds": [
+    {
+      "balanced_accuracy": 0.5714285714285715,
+      "macro_f1": 0.4444444444444445,
+      "n_subjects": 12,
+      "macro_auc": 0.9192239858906527,
+      "f1_mild": 0.5,
+      "n_mild": 2,
+      "f1_moderate": 0.0,
+      "n_moderate": 3,
+      "f1_severe": 0.8333333333333334,
+      "n_severe": 7,
+      "fold": 0
+    },
+    {
+      "balanced_accuracy": 0.3333333333333333,
+      "macro_f1": 0.25925925925925924,
+      "n_subjects": 12,
+      "macro_auc": 0.6153439153439154,
+      "f1_mild": 0.0,
+      "n_mild": 3,
+      "f1_moderate": 0.0,
+      "n_moderate": 2,
+      "f1_severe": 0.7777777777777778,
+      "n_severe": 7,
+      "fold": 1
+    },
+    {
+      "balanced_accuracy": 0.5634920634920634,
+      "macro_f1": 0.5521367521367522,
+      "n_subjects": 12,
+      "macro_auc": 0.7345679012345679,
+      "f1_mild": 0.4,
+      "n_mild": 3,
+      "f1_moderate": 0.3333333333333333,
+      "n_moderate": 2,
+      "f1_severe": 0.9230769230769231,
+      "n_severe": 7,
+      "fold": 2
+    },
+    {
+      "balanced_accuracy": 0.6666666666666666,
+      "macro_f1": 0.5803921568627451,
+      "n_subjects": 12,
+      "macro_auc": 0.8729166666666667,
+      "f1_mild": 0.8,
+      "n_mild": 2,
+      "f1_moderate": 0.0,
+      "n_moderate": 2,
+      "f1_severe": 0.9411764705882353,
+      "n_severe": 8,
+      "fold": 3
+    },
+    {
+      "balanced_accuracy": 0.6190476190476191,
+      "macro_f1": 0.6076923076923078,
+      "n_subjects": 11,
+      "macro_auc": 0.7592592592592592,
+      "f1_mild": 0.4,
+      "n_mild": 2,
+      "f1_moderate": 0.5,
+      "n_moderate": 2,
+      "f1_severe": 0.9230769230769231,
+      "n_severe": 7,
+      "fold": 4
+    }
+  ],
+  "pooled": {
+    "balanced_accuracy": 0.5235690235690236,
+    "macro_f1": 0.5162590353650195,
+    "n_subjects": 59,
+    "macro_auc": 0.7484512095982957,
+    "f1_mild": 0.46153846153846156,
+    "n_mild": 12,
+    "f1_moderate": 0.21052631578947367,
+    "n_moderate": 11,
+    "f1_severe": 0.8767123287671232,
+    "n_severe": 36,
+    "macro_f1_ci": [
+      0.5162590353650195,
+      0.38461894697789056,
+      0.6425203314927812
+    ],
+    "macro_auc_ci": [
+      0.7484512095982957,
+      0.6448585561103309,
+      0.8603808959481228
+    ],
+    "balanced_accuracy_ci": [
+      0.5235690235690236,
+      0.40066787787376024,
+      0.6563347630718954
+    ]
+  },
+  "params": {
+    "total": 27521661,
+    "quantum": 0,
+    "classical": 27521661
+  }
+}
