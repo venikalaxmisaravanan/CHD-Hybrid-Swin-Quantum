@@ -12,8 +12,20 @@ compression rather than from the entangling structure, and the paper's central
 claim does not hold. Report that outcome if you get it.
 
 Terminology: the circuit is simulated on classical hardware via PennyLane's
-default.qubit. No quantum-hardware claim is made anywhere in this work. State
-this explicitly in the manuscript.
+default.qubit. No quantum-hardware claim is made anywhere in this work.
+
+DEVICE NOTE: default.qubit builds its state vector on CPU and does not follow a
+torch model onto CUDA. The quantum layer is therefore pinned to CPU and the
+bottleneck vector crosses that boundary in forward(). Autograd tracks the
+transfer, so gradients flow normally. A 4-qubit state has 16 amplitudes, so the
+CPU cost is negligible beside the Swin backbone on GPU.
+
+GRADIENT NOTE: diff_method="backprop" differentiates through the simulator.
+For a simulated circuit this gives gradients mathematically identical to the
+parameter-shift rule, and is much faster. Parameter-shift would be required on
+physical hardware, where backpropagation through a quantum device is not
+possible. Section 3.3 of the manuscript must describe what was actually used,
+with that distinction stated.
 """
 
 from __future__ import annotations
@@ -71,11 +83,23 @@ class HybridSwin(nn.Module):
 
         self.head = nn.Linear(head_in, n_classes)
 
+    def to(self, *args, **kwargs):
+        """Move the model as usual, then pull the quantum layer back to CPU.
+
+        default.qubit allocates its state vector on CPU; leaving the circuit
+        weights on CUDA raises 'Expected all tensors to be on the same device'.
+        """
+        out = super().to(*args, **kwargs)
+        if out.quantum is not None:
+            out.quantum.to("cpu")
+        return out
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         z = self.backbone(x)
         z = self.proj(z)
         if self.quantum is not None:
-            z = self.quantum(z).float()
+            dev = z.device
+            z = self.quantum(z.to("cpu")).float().to(dev)
         return self.head(z)
 
 
