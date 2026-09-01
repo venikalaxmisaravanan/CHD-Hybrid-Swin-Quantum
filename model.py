@@ -32,7 +32,7 @@ def build_quantum_layer(n_qubits: int, n_layers: int) -> nn.Module:
 
     dev = qml.device("default.qubit", wires=n_qubits)
 
-    @qml.qnode(dev, interface="torch", diff_method="parameter-shift")
+    @qml.qnode(dev, interface="torch", diff_method="backprop")
     def circuit(inputs, weights):
         qml.AngleEmbedding(inputs, wires=range(n_qubits), rotation="X")
         qml.BasicEntanglerLayers(weights, wires=range(n_qubits))
