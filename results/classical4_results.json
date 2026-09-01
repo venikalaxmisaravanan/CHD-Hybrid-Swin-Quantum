@@ -1,0 +1,102 @@
+{
+  "config": "classical4",
+  "folds": [
+    {
+      "balanced_accuracy": 0.6190476190476191,
+      "macro_f1": 0.4743589743589744,
+      "n_subjects": 12,
+      "macro_auc": 0.9077601410934745,
+      "f1_mild": 0.5,
+      "n_mild": 2,
+      "f1_moderate": 0.0,
+      "n_moderate": 3,
+      "f1_severe": 0.9230769230769231,
+      "n_severe": 7,
+      "fold": 0
+    },
+    {
+      "balanced_accuracy": 0.4444444444444444,
+      "macro_f1": 0.4411764705882353,
+      "n_subjects": 12,
+      "macro_auc": 0.6579365079365079,
+      "f1_mild": 0.5,
+      "n_mild": 3,
+      "f1_moderate": 0.0,
+      "n_moderate": 2,
+      "f1_severe": 0.8235294117647058,
+      "n_severe": 7,
+      "fold": 1
+    },
+    {
+      "balanced_accuracy": 0.3968253968253968,
+      "macro_f1": 0.41904761904761906,
+      "n_subjects": 12,
+      "macro_auc": 0.7858906525573192,
+      "f1_mild": 0.4,
+      "n_mild": 3,
+      "f1_moderate": 0.0,
+      "n_moderate": 2,
+      "f1_severe": 0.8571428571428571,
+      "n_severe": 7,
+      "fold": 2
+    },
+    {
+      "balanced_accuracy": 0.6666666666666666,
+      "macro_f1": 0.5803921568627451,
+      "n_subjects": 12,
+      "macro_auc": 0.9500000000000001,
+      "f1_mild": 0.8,
+      "n_mild": 2,
+      "f1_moderate": 0.0,
+      "n_moderate": 2,
+      "f1_severe": 0.9411764705882353,
+      "n_severe": 8,
+      "fold": 3
+    },
+    {
+      "balanced_accuracy": 0.6666666666666666,
+      "macro_f1": 0.6666666666666666,
+      "n_subjects": 11,
+      "macro_auc": 0.9259259259259259,
+      "f1_mild": 0.5,
+      "n_mild": 2,
+      "f1_moderate": 0.5,
+      "n_moderate": 2,
+      "f1_severe": 1.0,
+      "n_severe": 7,
+      "fold": 4
+    }
+  ],
+  "pooled": {
+    "balanced_accuracy": 0.5395622895622896,
+    "macro_f1": 0.5209250879839115,
+    "n_subjects": 59,
+    "macro_auc": 0.8323560925318557,
+    "f1_mild": 0.5384615384615384,
+    "n_mild": 12,
+    "f1_moderate": 0.11764705882352941,
+    "n_moderate": 11,
+    "f1_severe": 0.9066666666666666,
+    "n_severe": 36,
+    "macro_f1_ci": [
+      0.5209250879839115,
+      0.40801402019422467,
+      0.6309218647086509
+    ],
+    "macro_auc_ci": [
+      0.8323560925318557,
+      0.7458850659908158,
+      0.9150288099246433
+    ],
+    "balanced_accuracy_ci": [
+      0.5395622895622896,
+      0.4287494795215383,
+      0.6521024596024597
+    ]
+  },
+  "params": {
+    "total": 27522445,
+    "quantum": 0,
+    "classical": 27522445
+  }
+}
