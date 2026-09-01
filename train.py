@@ -54,8 +54,17 @@ def train_one_fold(cfg, df, tr_idx, te_idx, device, fold: int):
     model = HybridSwin(cfg, n_classes=len(cfg.classes)).to(device)
     w = class_weights(tr_df, len(cfg.classes)).to(device)
     crit = nn.CrossEntropyLoss(weight=w)
-    opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr,
-                            weight_decay=cfg.weight_decay)
+    q_params = list(model.quantum.parameters()) if model.quantum is not None else []
+    q_ids = {id(p) for p in q_params}
+    other = [p for p in model.parameters() if id(p) not in q_ids]
+
+    opt = torch.optim.AdamW(
+    [
+        {"params": other, "lr": cfg.lr},
+        {"params": q_params, "lr": cfg.lr * 100},
+    ],
+    weight_decay=cfg.weight_decay
+)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.epochs)
 
     history = []
