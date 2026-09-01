@@ -104,16 +104,30 @@ def main():
 
     all_y, all_p, folds = [], [], []
     for fold, (tr, te) in enumerate(patient_folds(df, cfg.n_folds, cfg.seed)):
+        fold_file = out / f"fold{fold}_preds.npz"
+        if fold_file.exists():
+            print(f"[skip] fold {fold} already done")
+            d = np.load(fold_file)
+            y_pat, p_pat = d["y"], d["p"]
+            m = compute_metrics(y_pat, p_pat, cfg.classes)
+            m["fold"] = fold
+            folds.append(m)
+            all_y.append(y_pat); all_p.append(p_pat)
+            continue
+
         model, hist, y_pat, p_pat = train_one_fold(cfg, df, tr, te, device, fold)
         m = compute_metrics(y_pat, p_pat, cfg.classes)
         m["fold"] = fold
         folds.append(m)
         all_y.append(y_pat); all_p.append(p_pat)
-        torch.save(model.state_dict(), out / f"fold{fold}.pt")
-        with open(out / "folds_partial.json", "w") as f:
-           json.dump(folds, f, indent=2, default=float)
 
-        np.savez(out / f"fold{fold}_preds.npz", y=y_pat, p=p_pat)
+        ckpt_dir = Path("/content/ckpt") / cfg.run_name()
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        torch.save(model.state_dict(), ckpt_dir / f"fold{fold}.pt")
+
+        np.savez(fold_file, y=y_pat, p=p_pat)
+        with open(out / "folds_partial.json", "w") as f:
+            json.dump(folds, f, indent=2, default=float)
         print(f"[fold {fold}] {m}")
 
     Y = np.concatenate(all_y); P = np.concatenate(all_p)
