@@ -38,19 +38,47 @@ import torch.nn as nn
 # quantum-inspired layer
 # ---------------------------------------------------------------------------
 
-def build_quantum_layer(n_qubits: int, n_layers: int) -> nn.Module:
-    """AngleEmbedding -> BasicEntanglerLayers x L -> Pauli-Z expectations."""
+def build_quantum_layer(n_qubits: int, n_layers: int,
+                        init_std: float = 0.1) -> nn.Module:
+    """AngleEmbedding -> BasicEntanglerLayers x L -> Pauli-Z expectations.
+
+    Rotation angles are initialised near zero rather than uniformly in
+    [0, 2pi]. Near zero the entangling block starts close to identity, so
+    the encoded input reaches the measurement with its variance intact.
+    """
     import pennylane as qml
 
     dev = qml.device("default.qubit", wires=n_qubits)
 
     @qml.qnode(dev, interface="torch", diff_method="backprop")
     def circuit(inputs, weights):
-        qml.AngleEmbedding(inputs, wires=range(n_qubits), rotation="X")
-        qml.BasicEntanglerLayers(weights, wires=range(n_qubits))
-        return [qml.expval(qml.PauliZ(w)) for w in range(n_qubits)]
+        qml.AngleEmbedding(
+            inputs,
+            wires=range(n_qubits),
+            rotation="X"
+        )
+        qml.BasicEntanglerLayers(
+            weights,
+            wires=range(n_qubits)
+        )
+        return [
+            qml.expval(qml.PauliZ(w))
+            for w in range(n_qubits)
+        ]
 
-    return qml.qnn.TorchLayer(circuit, {"weights": (n_layers, n_qubits)})
+    init_method = {
+        "weights": lambda t: torch.nn.init.normal_(
+            t,
+            mean=0.0,
+            std=init_std
+        )
+    }
+
+    return qml.qnn.TorchLayer(
+        circuit,
+        {"weights": (n_layers, n_qubits)},
+        init_method=init_method
+    )
 
 
 # ---------------------------------------------------------------------------
