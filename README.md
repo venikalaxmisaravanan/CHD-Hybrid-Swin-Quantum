@@ -1,97 +1,115 @@
 # CHD-Hybrid-Swin-Quantum
 
-## Hybrid Swin Transformer and Quantum Feature Learning for Congenital Heart Disease Severity Classification
+## Isolating the Contribution of a Quantum Feature Layer in Hybrid Transformer Models
 
-A research implementation of a hybrid classical–quantum deep learning framework for
-cardiac MRI analysis. The project combines a pretrained **Swin Transformer** with a
-compact **4-qubit parameterized quantum feature layer** and a classical
-classification head.
+A controlled study of hybrid quantum-classical deep learning for congenital heart
+disease severity classification from cardiac MRI. A pretrained **Swin Transformer**
+backbone is paired with three interchangeable bottlenecks — none, a 4-dimensional
+classical projection, and a 4-qubit simulated parameterised circuit of identical
+width — to test whether entangling structure adds value beyond the dimensionality
+reduction that quantum encoding necessarily imposes.
 
-The implementation is evaluated using **patient-level cross-validation** on the
-HVSMR-2.0 cardiac MRI dataset.
+Evaluated with **patient-level cross-validation** on the public HVSMR-2.0 dataset.
 
-> **Project status:** Experimental validation in progress. Classical baselines and
-> the quantum L=1 experiment are complete. L=2 and L=3 are being re-evaluated after
-> correcting the quantum-layer initialization. L=1 must be rerun under the corrected
-> initialization before the final depth ablation is reported.
+> **Status: experiments complete. No further training required.**
+> The three-arm ablation, a secondary quantum configuration, and the
+> label-permutation leakage control have all been run and validated. Remaining work
+> is figures and manuscript preparation.
+
+### Headline finding
+
+**The 4-qubit entangling bottleneck did not outperform a matched classical
+projection.** The compression itself did help — macro-AUC rose from 0.748 to 0.832
+when a 4-dimensional classical bottleneck was introduced — but adding the quantum
+circuit in place of that projection reduced performance to 0.722. A second, refined
+encoding configuration shifted the metric profile without closing the gap.
+
+This is reported as a negative result. Confidence intervals overlap throughout at
+n = 59, and no difference is statistically resolved. The contribution is the
+controlled experimental design, not a performance improvement.
+
+**Author:** S. Venikalaxmi — Integrated M.Tech, VIT Vellore
 
 ---
 
-## 1. Project Overview
+## 1. Motivation
 
-The objective is to investigate whether a quantum feature transformation provides
-useful information beyond a conventional low-dimensional classical bottleneck.
+Encoding a classical representation into an *n*-qubit circuit requires first
+compressing that representation to *n* dimensions. On the small cohorts typical of
+clinical imaging, a narrow bottleneck is itself a powerful regulariser.
+
+When a hybrid model is compared only against an unmodified backbone — as is standard
+in the hybrid medical-imaging literature — any observed improvement is ambiguous
+between two explanations: the quantum transformation, and the compression that
+necessarily precedes it. The two are introduced together and cannot be separated
+after the fact.
+
+This project resolves that ambiguity by holding bottleneck width constant and varying
+only the presence of the quantum circuit.
 
 ```text
 Cardiac MRI
      │
      ▼
-Preprocessing / Cached MRI slices
+Preprocessing / cached 2.5D slice stacks
      │
      ▼
-Swin Transformer Backbone
+Swin Transformer Tiny backbone
      │
      ▼
-768-dimensional feature representation
+768-dimensional representation
+     │
+     ├──── (none) ──────────────────────────────► Classification head
      │
      ▼
-4-dimensional latent projection
+Linear(768 → 4) + tanh
      │
-     ├─────────────── Classical 4-D bottleneck
+     ├──── Classical 4-D bottleneck ────────────► Classification head
      │
-     └─────────────── Quantum Feature Layer
-                              │
-                              ▼
-                         4 Qubits
-                              │
-                    Angle Embedding (Rx)
-                              │
-                    BasicEntanglerLayers × L
-                              │
-                    Pauli-Z measurements
-                              │
-                              ▼
-                     Classification Head
-                              │
-                              ▼
-                    Mild / Moderate / Severe
+     └──── Quantum feature layer
+                    │
+               4 qubits
+                    │
+          AngleEmbedding (Rx)
+                    │
+          BasicEntanglerLayers × L
+                    │
+          Pauli-Z expectation values
+                    │
+                    ▼
+                                                  Classification head
+                                                        │
+                                                        ▼
+                                            Mild / Moderate / Severe
 ```
-
-CHD severity is treated as a **three-class classification problem**:
-
-* Class 0: Mild
-* Class 1: Moderate
-* Class 2: Severe
 
 ---
 
-## 2. Research Questions
+## 2. Research Question
 
-### RQ1 — Does the quantum feature transformation provide an advantage over a classical bottleneck?
+**Does a quantum feature transformation provide an advantage over a classical
+bottleneck of identical width?**
 
-Configurations compared:
+Three configurations, identical in every respect except the bottleneck:
 
 1. Swin Transformer only
-2. Swin Transformer + classical 4-D projection
+2. Swin Transformer + classical 4-D projection **(the control)**
 3. Swin Transformer + 4-qubit quantum feature layer
 
-The classical 4-D projection is the critical control. It holds bottleneck width
-fixed while removing the quantum structure, so the comparison asks whether the
-quantum transformation adds value beyond compression alone. Without this arm, any
-improvement over the plain backbone is uninterpretable.
+Preprocessing, augmentation, optimiser, schedule and cross-validation folds are held
+constant across all three, so that the bottleneck is the only variable.
 
-### RQ2 — How does quantum circuit depth affect performance?
-
-Four qubits with varying entangling depth: **L = 1, 2, 3**. Only circuit depth
-changes across this ablation.
+A secondary question — how performance varies with entangling depth (L = 1, 2, 3) —
+could not be answered: circuits at L ≥ 2 failed to converge under four separate
+optimisation configurations. The cause was diagnosed and is reported as an
+optimisation finding (Section 8.2).
 
 ---
 
 ## 3. Dataset
 
-### HVSMR-2.0
-
-Cropped HVSMR-2.0 cardiac MRI data with clinical metadata.
+Cropped HVSMR-2.0 cardiac MRI (Pace et al., 2024), CC BY, via figshare:
+https://doi.org/10.6084/m9.figshare.c.7074755.v2
 
 | Class     | Subjects |
 | --------- | -------: |
@@ -100,32 +118,35 @@ Cropped HVSMR-2.0 cardiac MRI data with clinical metadata.
 | Severe    |       36 |
 | **Total** |   **59** |
 
-The indexed dataset contains **59 subjects**. The nominal dataset size is 60; one
-subject is absent from the current index. This is stated rather than assumed away.
+The nominal release contains 60 scans; one subject is absent from the current index
+and is reported as excluded rather than assumed away.
 
-All experiments are performed at the **subject level** so that slices from the same
-patient never appear across different cross-validation folds.
+All experiments are at the **subject level** — slices from one patient never appear
+across different folds.
 
 ---
 
 ## 4. Data Processing
 
 1. Load cropped cardiac MRI volumes (NIfTI).
-2. Associate scans with clinical metadata by exact subject-ID matching.
-3. Percentile-clip intensities (1st–99th) and rescale to [0, 1]. MRI has no
-   absolute intensity scale, so normalization is per volume. Hounsfield windowing
-   does not apply.
+2. Associate scans with metadata by **anchored** subject-ID matching.
+3. Percentile-clip intensities (1st–99th), rescale to [0, 1], per volume. MRI has no
+   absolute intensity scale; Hounsfield windowing does not apply.
 4. Retain only slices intersecting annotated cardiac structures.
-5. Build 2.5D inputs: three contiguous axial slices mapped to three channels.
-6. Resize to **224 × 224**; standardize with ImageNet channel statistics.
+5. Build 2.5D inputs: three contiguous axial slices → three channels.
+6. Resize to 224 × 224; standardise with ImageNet channel statistics.
 7. Write a slice-level memmap cache with subject identifiers preserved.
 
-> **Subject-ID matching.** An earlier version used substring globbing, which caused
-> `pat1` to match `pat10`–`pat19` and silently pair five subjects with the wrong
-> volumes. Matching is now anchored and rejects ambiguous IDs. Any result predating
-> this fix is invalid.
+Augmentation: rotation ±15°, translation ±10%, intensity jitter. **Horizontal
+flipping is excluded** — left–right orientation is diagnostically meaningful in CHD
+(dextrocardia, situs anomalies, transposition), so flipping corrupts the label.
 
-The cache is stored outside the Git repository:
+> **Subject-ID matching bug (fixed).** An earlier implementation matched IDs by
+> substring, causing `pat1` to match `pat10`–`pat19` and silently pairing five
+> subjects with the wrong volumes. Matching is now anchored and rejects ambiguous
+> IDs. All results below postdate this fix.
+
+Cache (outside version control):
 
 ```text
 /content/cache/
@@ -133,95 +154,72 @@ The cache is stored outside the Git repository:
 └── index.csv
 ```
 
-Current cache: approximately **7,814 slices** from **59 subjects**.
+Approximately **7,814 slices** from **59 subjects**.
 
 ---
 
-## 5. Patient-Level Cross-Validation
+## 5. Cross-Validation
 
-**5-fold patient-level cross-validation**, stratified by severity. Folds are
-constructed over subject IDs, never over individual slices.
+**5-fold patient-level cross-validation**, stratified by severity, partitioned over
+subject IDs — never over individual slices.
 
-```text
-Training subjects → Model training → Held-out subjects → Fold predictions → Fold metrics
-```
-
-Held-out predictions are aggregated across all five folds. Slice-level probabilities
-are pooled to patient level by mean before any metric is computed.
+Slice-level probabilities are pooled to patient level by mean before any metric is
+computed. Held-out predictions are aggregated across all five folds.
 
 ---
 
-## 6. Model Architecture
+## 6. Model Architectures
 
-### 6.1 Swin Transformer Backbone
+Two bottleneck designs were evaluated. **The first produced the main ablation; the
+second is a secondary configuration reported in the discussion.** Both are retained
+in the repository.
 
-Pretrained **Swin Transformer Tiny** (`swin_tiny_patch4_window7_224`, ImageNet
-weights, fully fine-tuned), producing a 768-dimensional pooled embedding.
+### 6.1 Original design — `model.py`
 
-### 6.2 Classical 4-D Bottleneck (control arm)
-
-```text
-Swin feature → 768-D → Classical projection → 4-D → Classification head
-```
-
-Determines whether performance changes are caused by dimensionality reduction alone.
-
-### 6.3 Quantum Feature Layer
+Used for all three arms of the main ablation.
 
 ```text
-4-D latent → AngleEmbedding → BasicEntanglerLayers × L → Pauli-Z expectations → 4-D
+Swin → Linear(768→4) → tanh → [circuit] → head
 ```
 
-Implemented with **PennyLane** via `qml.qnn.TorchLayer`, simulated on
-`default.qubit`.
+No normalisation, no angle scaling. Circuit weights use PennyLane's default
+`BasicEntanglerLayers` initialisation, uniform in [0, 2π].
+
+### 6.2 Modified design — `model_batchnorm_variant.py`
+
+Developed while investigating non-convergence at L ≥ 2.
+
+```text
+Swin → Linear(768→4) → BatchNorm → tanh → × angle_scale → [circuit] → head
+```
+
+Adds BatchNorm after the projection and a learnable `angle_scale` (initialised π/2)
+multiplying the tanh output before angle encoding. Circuit weights initialised
+N(0, 0.1).
+
+> **These are different architectures.** Results from one cannot be placed in the
+> same comparison table as results from the other. The main ablation uses 6.1
+> throughout; the 6.2 result appears only as supporting evidence in the discussion,
+> with that limitation stated.
 
 ---
 
 ## 7. Quantum Circuit
 
-* Qubits: **4**
+* Qubits: **4** (16-dimensional state space)
 * Encoding: **AngleEmbedding** (Rx rotations)
 * Entangling block: **BasicEntanglerLayers** (ring-topology CNOTs)
 * Measurement: **Pauli-Z expectation values**
-* Depths evaluated: **L = 1, 2, 3**
+* Depth reported: **L = 1** (L ≥ 2 did not converge — Section 8.2)
+* Trainable circuit parameters: n × L
 
-Circuit parameters are trained jointly with the classical network.
+**Terminology.** "Quantum-inspired" denotes a classically simulated circuit. No
+quantum hardware was used and no hardware claim is made. At four qubits no asymptotic
+advantage is available, and none is claimed. The question is empirical: does the
+entangling structure of a small simulated circuit outperform a classical layer of
+identical output width on this task?
 
-### Quantum initialization
-
-Rotation parameters are initialized from a small normal distribution:
-
-```python
-torch.nn.init.normal_(t, mean=0.0, std=0.1)
-```
-
-Introduced after diagnostics showed severe compression of quantum output variance at
-deeper circuit depths (see Section 14).
-
----
-
-## 8. Optimization
-
-**AdamW.** Base learning rate `1e-4` for all classical components.
-
-Quantum circuit parameters use a separate rate:
-
-```text
-Classical parameters: 1e-4
-Quantum parameters:   1e-4 × 100 = 1e-2
-```
-
-The separation is necessary because circuit rotation angles are parameterized on a
-2π scale while network weights operate two orders of magnitude smaller; a shared
-rate leaves the angles effectively frozen.
-
-**This applies only to circuit rotation angles, which have no counterpart in the
-classical arm.** Backbone, projection, and head remain at `1e-4` in every
-configuration, so the classical-versus-quantum comparison stays matched.
-
----
-
-## 9. Quantum Differentiation
+### Differentiation
 
 ```python
 diff_method="backprop"
@@ -229,136 +227,118 @@ diff_method="backprop"
 
 Changed from parameter-shift, which failed on broadcasted inputs in this
 configuration. For a simulated circuit, backpropagation through the state vector
-yields gradients mathematically identical to parameter-shift.
+gives gradients mathematically identical to parameter-shift.
 
-**Manuscript note:** the parameter-shift rule would be required on physical
-hardware, where backpropagation through a quantum device is not possible. The
-methods section must describe what was actually used, with that distinction stated.
+**Manuscript note:** parameter-shift would be required on physical hardware, where
+backpropagation through a quantum device is not possible. The methods section states
+what was actually used, with that distinction made explicit.
 
----
+### Optimisation
 
-## 10. Hardware and Runtime
+**AdamW**, base learning rate `1e-4` for all classical components. Circuit rotation
+parameters use a separate rate of `1e-2` (base × 100), because rotation angles are
+parameterised on a 2π scale while network weights operate two orders of magnitude
+smaller; a shared rate leaves the angles effectively frozen.
 
-Google Colab with GPU acceleration for classical components. The PennyLane simulator
-runs on CPU; the quantum layer is pinned to CPU and the 4-D bottleneck vector
-crosses the device boundary inside `forward()`. Autograd tracks the transfer, so
-gradients flow normally. A 4-qubit state has 16 amplitudes, so the CPU cost is
-negligible beside the backbone.
+**This applies only to circuit parameters, which have no counterpart in the classical
+arm.** Backbone, projection and head remain at `1e-4` in every configuration, so the
+classical-versus-quantum comparison stays matched.
 
----
+### Device placement
 
-## 11. Training Configuration
-
-| Parameter               | Current value           |
-| ----------------------- | ----------------------- |
-| Backbone                | Swin Transformer Tiny   |
-| Input size              | 224 × 224 (2.5D stack)  |
-| Bottleneck size         | 4                       |
-| Number of qubits        | 4                       |
-| Quantum layers          | 1 / 2 / 3               |
-| Quantum weight init     | N(0, 0.1)               |
-| Base learning rate      | 1e-4                    |
-| Quantum LR multiplier   | ×100                    |
-| Optimizer               | AdamW                   |
-| Loss                    | CrossEntropyLoss (class-weighted) |
-| Cross-validation        | 5-fold patient-level    |
-| Training epochs         | 8                       |
-| Quantum simulator       | PennyLane default.qubit |
-| Quantum differentiation | Backpropagation         |
-
-Finalized after all depth experiments complete.
+The PennyLane simulator runs on CPU; the quantum layer is pinned to CPU and the 4-D
+bottleneck vector crosses the device boundary inside `forward()`. Autograd tracks the
+transfer. A 4-qubit state has 16 amplitudes, so the CPU cost is negligible beside the
+backbone on GPU.
 
 ---
 
-## 12. Experimental Configurations
+## 8. Results
 
-`--bottleneck` accepts `none`, `classical`, or `quantum`. These are *modes*, not run
-names; the run name (`swin_only`, `classical4`, `q4_L1`, …) is derived automatically.
-
-### Baseline 1 — Swin only
-
-```bash
-python train.py --bottleneck none --epochs 8
-```
-
-Performance of the backbone without bottleneck or quantum transformation.
-
-### Baseline 2 — Classical 4-D
-
-```bash
-python train.py --bottleneck classical --n_qubits 4 --epochs 8
-```
-
-Tests whether 4-D compression alone explains any improvement.
-
-### Quantum L=1
-
-```bash
-python train.py --bottleneck quantum --n_qubits 4 --n_layers 1 --epochs 8
-```
-
-### Quantum L=2
-
-Two-epoch diagnostic first:
-
-```bash
-python train.py --bottleneck quantum --n_qubits 4 --n_layers 2 --epochs 2
-```
-
-The full 8-epoch run starts only after the diagnostic confirms training loss falls
-clearly below ln(3) ≈ 1.0986.
-
-### Quantum L=3
-
-```bash
-python train.py --bottleneck quantum --n_qubits 4 --n_layers 3 --epochs 8
-```
-
-Evaluated after L=2 is finalized.
-
----
-
-## 13. Current Validated Results
+### 8.1 Main ablation — original architecture (Section 6.1)
 
 Patient-level, 5-fold cross-validation, bootstrap 95% confidence intervals
-(1000 replicates, patient-level resampling).
+(1000 replicates, patient-level resampling). All three arms share preprocessing,
+augmentation, optimiser, schedule and folds; **only the bottleneck differs.**
 
-| Configuration | Balanced Accuracy [95% CI] | Macro F1 | Macro AUC [95% CI] |
-| ------------- | -------------------------: | -------: | -----------------: |
-| Swin Only     |     0.524 [0.401, 0.656]   |    0.516 | 0.748 [0.645, 0.860] |
-| Classical 4-D |     0.540 [0.429, 0.652]   |    0.521 | 0.832 [0.746, 0.915] |
-| Quantum L=1   |     0.449 [0.336, 0.568]   |    0.456 | 0.722 [0.612, 0.821] |
-| Quantum L=2   |                    Pending |  Pending |            Pending |
-| Quantum L=3   |                    Pending |  Pending |            Pending |
+| Configuration | Balanced Accuracy [95% CI] | Macro F1 | Macro AUC [95% CI]       |
+| ------------- | -------------------------: | -------: | -----------------------: |
+| Swin Only     |       0.524 [0.401, 0.656] |    0.516 |     0.748 [0.645, 0.860] |
+| Classical 4-D |       0.540 [0.429, 0.652] |    0.521 | **0.832 [0.746, 0.915]** |
+| Quantum L=1   |       0.449 [0.336, 0.568] |    0.456 |     0.722 [0.612, 0.821] |
 
-Intervals are wide because the cohort contains 59 subjects with 11 in the smallest
-class. Differences between configurations are **not statistically resolved** at this
-sample size and must not be reported as such.
+**Per-class F1**
 
-### Per-class F1
+| Class    |  n | Swin Only | Classical 4-D | Quantum L=1 |
+| -------- | -: | --------: | ------------: | ----------: |
+| Mild     | 12 |     0.462 |         0.538 |       0.353 |
+| Moderate | 11 |     0.211 |         0.118 |       0.190 |
+| Severe   | 36 |     0.877 |         0.907 |       0.825 |
 
-| Class    | Swin Only | Classical 4-D | Quantum L=1 |
-| -------- | --------: | ------------: | ----------: |
-| Mild     |     0.462 |         0.538 |       0.353 |
-| Moderate |     0.211 |         0.118 |       0.190 |
-| Severe   |     0.877 |         0.907 |       0.825 |
+**Confusion matrices** (rows = true: mild / moderate / severe)
 
-Severe is recovered well across all configurations; mild and moderate are not. The
-model largely learns a severe-versus-not-severe distinction, reflecting both class
-imbalance and the difficulty of the mild/moderate boundary.
+```text
+Swin only          Classical 4-D       Quantum L=1
+[[ 6  4  2]        [[ 7  4  1]         [[ 3  5  4]
+ [ 6  2  3]         [ 6  1  4]          [ 2  2  7]
+ [ 2  2 32]]        [ 1  1 34]]         [ 0  3 33]]
+```
 
-### Interpretation
+### 8.2 Secondary configuration — modified architecture (Section 6.2)
 
-The L=1 quantum arm sits **below** the classical 4-D control (0.722 vs 0.832 macro
-AUC). The present evidence does **not** support claiming that the quantum feature
-layer improves performance over a matched classical bottleneck. Remaining depth
-experiments are required before any conclusion is drawn.
+| Configuration | Balanced Accuracy [95% CI] | Macro F1 | Macro AUC [95% CI]   |
+| ------------- | -------------------------: | -------: | -------------------: |
+| Quantum L=1 (BatchNorm + angle scale) | 0.492 [0.350, 0.639] | 0.492 | 0.683 [0.564, 0.804] |
+
+Per-class F1: mild 0.455, moderate 0.286, severe 0.735.
+
+```text
+Confusion matrix
+[[ 5  3  4]
+ [ 4  4  3]
+ [ 1 10 25]]
+```
+
+**Interpretation — stated precisely.** Relative to the original quantum
+configuration, the refined encoding **improved balanced accuracy (0.449 → 0.492) and
+macro F1 (0.456 → 0.492)**, with a notable gain in minority-class recovery
+(moderate F1 0.190 → 0.286). **Macro AUC declined (0.722 → 0.683.)** The change is
+therefore not a uniform improvement, and is not described as one.
+
+**This configuration is not directly comparable to the classical control**, which
+lacks BatchNorm. It is reported as supporting evidence, not as a row in the main
+table. Its value is that two structurally distinct quantum configurations both fell
+short of the classical control — stronger evidence than a single run.
+
+### 8.3 What the results show
+
+**Compression alone improves discrimination.** Introducing a 4-dimensional classical
+bottleneck raised macro AUC from 0.748 to 0.832 (+0.084) over the plain backbone. On
+a 59-subject cohort, compressing 768 dimensions to 4 acts as a strong regulariser.
+This is precisely the confound the ablation was built to expose: without this arm,
+any quantum improvement over the backbone would have been uninterpretable.
+
+**The quantum bottleneck did not outperform its matched control.** At 0.722 macro AUC
+it fell 0.110 below the classical projection of identical width, and below the plain
+backbone. Under the refined encoding it reached 0.683. Neither configuration
+approached the control on any metric.
+
+**Nothing here is statistically resolved.** Confidence intervals overlap
+substantially across all configurations. With n = 59 and 11 subjects in the smallest
+class, the study is not powered to resolve differences of the observed magnitude.
+This is stated rather than worked around.
+
+**Class-wise behaviour.** Severe is recovered reliably (F1 0.735–0.907); moderate is
+not (0.118–0.286). The models largely learn a severe-versus-not-severe distinction,
+reflecting both class imbalance and the graded nature of the mild/moderate boundary.
+Moderate is misclassified as mild in every configuration, suggesting the
+mild/moderate boundary rather than moderate/severe is the difficult one.
 
 ---
 
-## 14. Validation Controls
+## 9. Validation Controls and Diagnostics
 
-### Label-permutation control
+### 9.1 Label-permutation control
 
 Severity labels were randomly permuted across subjects, holding all else fixed, and
 the pipeline retrained.
@@ -369,78 +349,124 @@ the pipeline retrained.
 | Macro AUC         |       0.748 |           0.375 |  0.500 |
 | F1 mild           |       0.462 |           0.000 |      — |
 | F1 moderate       |       0.211 |           0.000 |      — |
+| F1 severe         |       0.877 |           0.444 |      — |
 
-Permuted-label macro AUC: 0.375, 95% CI [0.263, 0.506] — the interval contains 0.50.
-Training loss reached 0.017, showing the network memorised the permuted training
-labels completely without any transfer to held-out subjects.
+Permuted-label macro AUC 0.375, 95% CI [0.263, 0.506] — **the interval contains
+0.500.** Training loss reached 0.017, showing the network memorised the permuted
+training labels completely with zero transfer to held-out subjects. Mild and moderate
+received F1 of exactly 0.000, the majority-class behaviour of an uninformative model.
 
-**This confirms the absence of patient-level leakage between folds.** Results are
-stored in `results/archive/shuffle_control/`.
+**This confirms the absence of patient-level leakage between folds.** Archived in
+`results/archive/shuffle_control/`.
 
-### Quantum initialization investigation
+### 9.2 Non-convergence at entangling depth L ≥ 2
 
-During the L=2 experiment, training loss remained at approximately **1.0975** across
-consecutive epochs. For three classes, ln(3) ≈ 1.0986, so the classifier was
-producing an uninformative class-prior solution and had not trained at all.
+Circuits at L ≥ 2 could not be trained to convergence. Across four configurations,
+training loss remained at approximately **1.098** — equal to ln(3), the value of an
+uninformative three-class classifier — meaning these models failed to fit even their
+own training data.
 
-Gradient diagnostics were healthy (circuit gradient norm 0.129, projection 0.382),
-ruling out a barren plateau. However, output variance collapsed through the circuit:
+| Configuration                                          | Final train loss | Converged |
+| ------------------------------------------------------ | ---------------: | --------- |
+| Shared learning rate (1e-4)                             |           1.0963 | No        |
+| Separate circuit rate (1e-2)                            |           1.0975 | No        |
+| Separate circuit rate (5e-2)                            |           1.0975 | No        |
+| Small init N(0, 0.1) + BatchNorm + learnable angle scale |           1.0973 | No        |
+
+**Mechanism.** Gradient diagnostics ruled out a barren plateau — circuit gradient norm
+0.129 against 0.382 for the projection layer. The cause was variance collapse through
+the angle encoding:
 
 ```text
 projection output std: [0.095, 0.078, 0.095, 0.033]
-quantum   output std: [0.017, 0.050, 0.035, 0.017]
+circuit    output std: [0.017, 0.050, 0.035, 0.017]
 ```
 
-`BasicEntanglerLayers` initializes rotation angles uniformly in [0, 2π], placing the
-circuit in a strongly mixing regime. At L=1 enough signal survives; at L≥2 the
-measurement output is nearly constant across inputs and the head has nothing to
-separate. Initialization was therefore changed to N(0, 0.1), which starts the
-entangling block near identity.
+`AngleEmbedding` interprets inputs as rotation angles **in radians**. With projection
+outputs of magnitude ≈ 0.09, every input produced an Rx rotation of ≈ 0.09 rad, so
+⟨Z⟩ = cos(θ) ≈ 0.996 nearly independent of the input. The unparameterised CNOT ring
+compounds this contraction at each layer — which is why L = 1 trained and L ≥ 2 did
+not.
 
-This is an **optimization diagnostic**, not a performance claim. A model that cannot
-fit its own training data has not been trained, and its test metrics measure an
-optimization failure rather than the architecture. Such runs are archived, never
-reported.
+Adding BatchNorm and a learnable angle scale restored variance transmission
+(projection std ≈ 0.55, circuit std ≈ 0.34; ratio 0.62 against 0.19 previously) and
+permitted initial convergence at two epochs, but training destabilised over longer
+schedules and returned to the class prior.
+
+**This is an optimisation finding, not a performance claim.** A model that cannot fit
+its own training data has not been trained, and its test metrics measure an
+optimisation failure rather than an architecture. Such runs are archived, never
+reported as results.
 
 ---
 
-## 15. Evaluation Metrics
+## 10. Evaluation Metrics and Statistical Treatment
 
 Recorded per configuration: accuracy, balanced accuracy, macro F1, per-class F1,
-macro ROC-AUC, confusion matrix, fold-level predictions, bootstrap confidence
-intervals.
+macro one-vs-rest ROC-AUC, confusion matrix, fold-level predictions, bootstrap
+confidence intervals.
 
-Balanced accuracy and macro F1 are reported alongside raw accuracy because the class
-distribution is uneven — predicting "severe" for every subject yields 61% raw
-accuracy but 0.333 balanced accuracy.
+Balanced accuracy and macro F1 are emphasised over raw accuracy because the class
+distribution is uneven — predicting "severe" for every subject yields 61% raw accuracy
+but 0.333 balanced accuracy.
 
----
-
-## 16. Statistical Validation
-
-Patient-level cross-validation with held-out predictions aggregated across folds.
-Bootstrap confidence intervals (patient-level resampling, ≥1000 replicates) are
-computed for balanced accuracy, macro F1, and macro AUC.
-
-Paired comparison between configurations will use DeLong's test per class with
-Benjamini–Hochberg correction, finalized once all ablation arms are complete.
+Bootstrap confidence intervals use patient-level resampling with 1000 replicates.
+Given that all intervals overlap, no significance test is reported. With n = 59 and 11
+subjects in the smallest class, the study is not powered to resolve differences of the
+observed magnitude, and this is stated explicitly rather than worked around.
 
 ---
 
-## 17. Explainability
+## 11. Training Configuration
 
-Grad-CAM analysis at the final Swin stage, computed per severity class. A Swin
+| Parameter               | Value                             |
+| ----------------------- | --------------------------------- |
+| Backbone                | Swin Transformer Tiny             |
+| Input size              | 224 × 224 (2.5D stack)            |
+| Bottleneck size         | 4                                 |
+| Number of qubits        | 4                                 |
+| Quantum layers reported | 1                                 |
+| Base learning rate      | 1e-4                              |
+| Quantum LR multiplier   | ×100                              |
+| Optimizer               | AdamW                             |
+| Loss                    | CrossEntropyLoss (class-weighted) |
+| Cross-validation        | 5-fold patient-level              |
+| Training epochs         | 8                                 |
+| Quantum simulator       | PennyLane default.qubit           |
+| Quantum differentiation | Backpropagation                   |
+
+---
+
+## 12. Reported Configurations
+
+`--bottleneck` accepts `none`, `classical`, or `quantum`. These are *modes*, not run
+names; the run name (`swin_only`, `classical4`, `q4_L1`) is derived automatically.
+
+```bash
+# Main ablation — with model.py (original architecture)
+python train.py --bottleneck none      --epochs 8
+python train.py --bottleneck classical --n_qubits 4 --epochs 8
+python train.py --bottleneck quantum   --n_qubits 4 --n_layers 1 --epochs 8
+
+# Secondary configuration — with model_batchnorm_variant.py
+python train.py --bottleneck quantum   --n_qubits 4 --n_layers 1 --epochs 8
+```
+
+---
+
+## 13. Explainability (implemented, not yet run)
+
+Grad-CAM at the final Swin stage, computed per severity class. A Swin
 `reshape_transform` is required, since pytorch-grad-cam expects channel-first
 activations while Swin emits tokens.
 
 HVSMR-2.0 ships substructure segmentation masks, enabling a **quantitative** check:
-overlap between the Grad-CAM peak region and annotated cardiac anatomy, compared
-against the chance baseline given by the mask's area fraction. Reported separately
-from the quantitative ablation.
+overlap between the Grad-CAM peak region and annotated cardiac anatomy, against the
+chance baseline given by mask area fraction. Implemented in `explain.py`.
 
 ---
 
-## 18. Repository Structure
+## 14. Repository Structure
 
 ```text
 CHD-Hybrid-Swin-Quantum/
@@ -449,7 +475,8 @@ CHD-Hybrid-Swin-Quantum/
 ├── data.py
 ├── cached_data.py
 ├── prepare_cache.py
-├── model.py
+├── model.py                        (original — used for main ablation)
+├── model_batchnorm_variant.py      (modified — secondary configuration)
 ├── train.py
 ├── metrics.py
 ├── explain.py
@@ -465,42 +492,40 @@ CHD-Hybrid-Swin-Quantum/
 │   └── q4_L1_predictions.npz
 │
 └── results/archive/
-    ├── shuffle_control/          (label-permutation validation)
-    ├── q4_L3_initial/            (failed: single LR, no convergence)
-    └── q4_L2_uniform_init/       (failed: uniform init, no convergence)
+    ├── shuffle_control/            (label-permutation validation — passed)
+    ├── q4_L1_batchnorm/            (secondary configuration — Section 8.2)
+    ├── q4_L3_shared_lr/            (failed: no convergence, loss 1.0963)
+    ├── q4_L2_uniform_init/         (failed: no convergence, loss 1.0975)
+    ├── q4_L2_high_lr/              (failed: no convergence, loss 1.0975)
+    └── q4_L2_batchnorm/            (failed: diverged, loss 1.0973)
 ```
 
-Datasets, cached tensors, and checkpoints are excluded from version control.
+Datasets, cached tensors and checkpoints are excluded from version control.
 
 ---
 
-## 19. Reproducing the Experiments
+## 15. Reproducing the Experiments
 
-### Step 1 — Mount Drive
+**Step 1 — Mount Drive**
 
 ```python
 from google.colab import drive
 drive.mount('/content/drive')
 ```
 
-### Step 2 — Enter the project directory
+**Step 2 — Enter the project directory**
 
 ```python
 %cd /content/drive/MyDrive/CHD_Journal_Project/Restored_Project
 ```
 
-### Step 3 — Install dependencies
+**Step 3 — Install dependencies** (wiped on every Colab restart)
 
 ```python
 !pip install -q timm pennylane nibabel grad-cam
 ```
 
-PennyLane is required only for quantum runs but is not preinstalled in Colab and is
-wiped on every runtime restart.
-
-### Step 4 — Build the cache
-
-The cache lives on local disk and is wiped each session:
+**Step 4 — Build the cache** (local disk, wiped each session)
 
 ```python
 !ls -lh /content/cache 2>/dev/null || python prepare_cache.py
@@ -515,44 +540,26 @@ print("Subjects:", idx.subject_id.nunique())
 print(idx.groupby("y").subject_id.nunique())
 ```
 
-Expected:
+Expected: 59 subjects; 12 / 11 / 36.
 
-```text
-Subjects: 59
-y
-0    12
-1    11
-2    36
-```
-
-### Step 5 — Check GPU
+**Step 5 — Check GPU**
 
 ```python
 import torch
 print("CUDA available:", torch.cuda.is_available())
-if torch.cuda.is_available():
-    print("Device:", torch.cuda.get_device_name(0))
 ```
 
 If this reports CPU, stop. Training on CPU is roughly 30–50× slower.
 
-### Step 6 — Run an experiment
+**Step 6 — Run the configurations** (Section 12).
 
-```python
-!python train.py --bottleneck none --epochs 8
-!python train.py --bottleneck classical --n_qubits 4 --epochs 8
-!python train.py --bottleneck quantum --n_qubits 4 --n_layers 1 --epochs 8
-```
-
-### Step 7 — Check convergence before trusting any result
-
-Training loss must fall clearly below **ln(3) ≈ 1.0986**. A run ending near that
-value has not trained, and its test metrics are meaningless regardless of whether
-the script exited cleanly.
+**Step 7 — Check convergence before trusting any result.** Training loss must fall
+clearly below **ln(3) ≈ 1.0986**. A run ending near that value has not trained, and
+its test metrics are meaningless regardless of whether the script exited cleanly.
 
 ---
 
-## 20. Experiment Output
+## 16. Experiment Output and Resume
 
 ```text
 runs/
@@ -563,95 +570,52 @@ runs/
     └── results.json
 ```
 
-Final result files are copied into `results/` for version control. Model checkpoints
-are written to `/content/ckpt/` (local disk) to avoid consuming Drive quota.
+Fold-level predictions are written as each fold completes, so a Colab disconnect costs
+one fold rather than a whole run. Rerunning a command skips folds already present.
 
----
-
-## 21. Resume and Checkpointing
-
-Fold-level predictions are written as each fold completes. Rerunning a command skips
-folds already present, which matters in Colab where sessions disconnect during long
-runs.
-
-**When changing any configuration or initialization, delete the run directory
-first:**
+**When changing any configuration or model file, delete the run directory first:**
 
 ```python
-!rm -rf runs/q4_L2
+!rm -rf runs/q4_L1
 ```
 
 Otherwise stale folds are silently reused and the result mixes two configurations.
 
----
-
-## 22. Experimental Principle
-
-The final depth ablation must use identical settings across L=1, L=2, and L=3,
-differing only in entangling depth. The goal is to isolate the effect of circuit
-depth, not to compare independently tuned models.
-
-**The L=1 experiment was completed under the previous initialization and therefore
-must be rerun under the corrected N(0, 0.1) initialization before the final depth
-comparison is reported.** The current L=1 figures in Section 13 stand as a valid
-result for that configuration, but they are not comparable to L=2 and L=3 once those
-use different initialization.
+Final result files are copied into `results/` for version control. Checkpoints go to
+`/content/ckpt/` (local disk) to avoid consuming Drive quota.
 
 ---
 
-## 23. Current Experimental Status
-
-### Completed
-
-* [x] HVSMR-2.0 data organization
-* [x] Subject-level metadata indexing with anchored ID matching
-* [x] Slice cache generation
-* [x] 5-fold patient-level cross-validation pipeline
-* [x] **Label-permutation leakage control (passed)**
-* [x] Swin-only baseline
-* [x] Classical 4-D bottleneck
-* [x] Quantum L=1 (previous initialization)
-* [x] Quantum circuit backpropagation implementation
-* [x] Quantum-specific learning-rate configuration
-* [x] Small quantum-weight initialization implementation
-
-### In progress
-
-* [ ] L=2 two-epoch diagnostic
-* [ ] L=2 full 8-epoch experiment
-* [ ] L=3 corrected experiment
-* [ ] Rerun L=1 under the final common initialization
-* [ ] Final quantum-depth ablation table
-* [ ] DeLong paired statistical comparison
-* [ ] Grad-CAM analysis and mask-overlap scoring
-* [ ] Final journal figures
-* [ ] Final manuscript experimental section
-
----
-
-## 24. Scientific Reporting Policy
+## 17. Scientific Reporting Policy
 
 This repository deliberately distinguishes between:
 
-1. **Previously reported results** (from earlier drafts, not treated as valid)
-2. **Currently validated results** (from this pipeline, post-leakage-check)
-3. **Pending experiments**
-4. **Archived failed or obsolete runs**
+1. **Previously reported results** — from earlier drafts, not treated as valid
+2. **Currently validated results** — from this pipeline, post-leakage-check
+3. **Secondary configurations** — valid but not architecturally matched to the main
+   ablation, reported separately with that limitation stated
+4. **Archived failed or non-converged runs** — retained with the reason recorded
 
-Results are not treated as final merely because they appeared in an earlier
-manuscript draft. A run is reported only if the model demonstrably converged and the
-configuration is documented.
-
-The journal manuscript will be updated only after the current reproducible
-patient-level experiments are complete and verified.
+A run is reported only if the model demonstrably converged and the configuration is
+documented. Results are not treated as final merely because they appeared in an
+earlier draft. A negative outcome is reported as readily as a positive one, and a
+partial improvement is not described as a uniform one.
 
 ---
 
-## 25. Disclaimer
+## 18. Remaining Work
+
+* [ ] Figures 1–6 (from stored `results.json` / `predictions.npz` — no training)
+* [ ] Grad-CAM analysis and mask-overlap scoring
+* [ ] Manuscript preparation
+* [ ] Venue selection — targeting a journal or workshop that accepts negative results
+
+**No further model training is required.**
+
+---
+
+## 19. Disclaimer
 
 A research prototype for experimental evaluation of hybrid quantum-classical machine
-learning on cardiac MRI. **Not a clinically validated diagnostic system.** Not for
-use in medical decision-making.
-
-## Author
-S.Venikalaxmi (Integrated MTech at VIT, Vellore )
+learning on cardiac MRI. **Not a clinically validated diagnostic system.** Not for use
+in medical decision-making.
