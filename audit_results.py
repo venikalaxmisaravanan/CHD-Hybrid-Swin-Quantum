@@ -16,7 +16,7 @@ RUNS = {
 }
 
 SECONDARY = {
-    "q4_L1_batchnorm": ("Quantum L=1, refined encoding", "batchnorm"),
+    "q4_L1_new": ("Quantum L=1, refined encoding", "batchnorm"),
 }
 
 
